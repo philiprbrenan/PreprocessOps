@@ -22,4 +22,5 @@ jobs:
       run: |
         tree
         perl Build.PL
+        perl Build manifest
         perl Build test
