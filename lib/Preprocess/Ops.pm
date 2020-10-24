@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------------
 # podDocumentation
 package Preprocess::Ops;
-our $VERSION = 20201025;
+our $VERSION = 20201026;
 use warnings FATAL => qw(all);
 use strict;
 use Carp;
@@ -661,7 +661,7 @@ L<https://github.com/philiprbrenan/PreprocessOps>
 Preprocess ◁, ◀, ▷ and ▶ as operators in ANSI-C.
 
 
-Version 20201025.
+Version 20201026.
 
 
 The following sections describe the methods in each functional area of this
