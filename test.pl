@@ -1,7 +1,7 @@
-#!/usr/bin/perl -I/home/phil/perl/cpan/Preprocess/lib/
+#!/usr/bin/perl
 #-------------------------------------------------------------------------------
-# Test Tree::Ops
-# Philip R Brenan at gmail dot com, Appa Apps Ltd, 2016
+# Test Preprocess::Ops
+# Philip R Brenan at gmail dot com, Appa Apps Ltd, 2020
 #-------------------------------------------------------------------------------
 
 use warnings FATAL => qw(all);
