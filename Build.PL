@@ -14,14 +14,14 @@ my $b = Module::Build->new
     'Test::More'        =>0,
    },
   configure_requires => {'Module::Build' => 0.4224},
+  meta_merge =>
+   {resources =>
+     {repository => 'https://github.com/philiprbrenan/PreprocessOps',
+      bugtracker => 'https://github.com/philiprbrenan/PreprocessOps/issues'
+     }
+   },
   create_readme =>  0,
   perl          => '5.26.0',
-  meta_merge => {
-    resources => {
-      repository => 'https://github.com/philiprbrenan/PreprocessOps',
-      bugtracker => 'https://github.com/philiprbrenan/PreprocessOps/issues'
-    }
-  },
  );
 
 $b->create_build_script();
