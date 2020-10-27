@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------------
 # podDocumentation
 package Preprocess::Ops;
-our $VERSION = 20201026;
+our $VERSION = 20201028;
 use warnings FATAL => qw(all);
 use strict;
 use Carp;
@@ -344,7 +344,7 @@ END
    }
 
   if (1)                                                                        # Preprocess input C file
-   {my $e = q([a-z0-9𝗮-𝘇¹²³⁴⁵⁶⁷⁸⁹⁰₁₂₃₄₅₆₇₈₉₀ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ\$_>.*-]); # Elements of a name
+   {my $e = q([a-z0-9𝗮-𝘇¹²³⁴⁵⁶⁷⁸⁹⁰₁₂₃₄₅₆₇₈₉₀ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ\$_>.*[\]-]); # Elements of a name
     for my $c(@code)                                                            # Source code lines
      {$c =~ s{($e+)\s*◀\s*(.*?);}       {typeof($2) $1 = $2;}gis;               # Variable creation
       $c =~ s{($e+)\s*◁\s*(.*?);} {const typeof($2) $1 = $2;}gis;               # Constant creation
@@ -355,14 +355,18 @@ END
       $c =~ s{new\s*(\w+\s*)(\(\))?([,;])}                                      # Constructor followed by [,;] calls for default constructor.
              {new$1(({struct $1 t = {proto: &ProtoTypes_$1};   t;}))$3}gs;
 
-      $c =~ s{($e+)\s*▶\s*(\w+)\s*\(} {$1->proto->$2($1, }gis;                  # Method call with arguments
-      $c =~ s{($e+)\s*▶\s*(\w+)}      {$1->proto->$2($1)}gis;                   # Method call with no arguments
+      $c =~ s{($e+)\s*▶\s*(\w+)\s*\(} {$1->proto->$2($1, }gis;                  # Method call with arguments from pointer
+      $c =~ s{($e+)\s*▶\s*(\w+)}      {$1->proto->$2($1)}gis;                   # Method call with no arguments from pointer
       $c =~ s{($e+)\s*▷\s*(\w+)\s*\(} {$1.proto->$2(&$1, }gis;                  # Method call with arguments
       $c =~ s{($e+)\s*▷\s*(\w+)}      {$1.proto->$2(&$1)}gis;                   # Method call with no arguments
 
       $c =~ s{✓([^;]*)} {assert($1)}gis;                                        # Tick becomes assert
 
-      $c =~ s{\A(.*)≞([^;]*)} {memcpy(&$1, ({typeof($1) s = $2; (void *)&s;}), sizeof($1))}gis;  # Memory equals becomes memcpy
+      my $s = 'source'x3; my $t = 'target'x3;                                   # Unlikely variable names
+      $c =~ s{($e+)\s*!≞\s*([^;)]*)} {({typeof($1) $t = $1, $s = $2;  memcmp(&$t, &$s, sizeof($1));})}gis; # Memory not equal
+      $c =~ s{($e+)\s*≞≞\s*([^;)]*)} {({typeof($1) $t = $1, $s = $2; !memcmp(&$t, &$s, sizeof($1));})}gis; # Memory equal
+      $c =~ s{($e+)\s*≞\s*0\s*}      {memset(&$1, 0,                                      sizeof($1))}gis; # Clear memory if equal zero
+      $c =~ s{($e+)\s*≞\s*([^;]*)}  {({typeof($1) $s = $2; memcpy(&$1, &$s, sizeof($1));})}gis;           # Memory equals becomes memcpy if copying something not zero
 
       $c =~ s( +\Z) ()gs;                                                       # Remove trailing spaces at line ends
      }
@@ -531,18 +535,67 @@ to make B<assert> function calls more prominent in tests.
 
 Convert instances of B<≞> as in:
 
-   Colour c;
-   c ≞ makeColour(0,1,0,1);
+  Colour c;
+  c ≞ makeColour(0,1,0,1);
 
 to:
 
-   Colour c;
-   memcpy(
-    ((void *)&c,
-    ({typeof(c) s = makeColour(0,1,0,1); (void *)&s;}),
-    sizeof(c));
+  Colour c;
+  memcpy(
+   ((void *)&c,
+   ({typeof(c) s = makeColour(0,1,0,1); (void *)&s;}),
+   sizeof(c));
 
-to allow piece-wise initialization of structures with constant elements.
+to allow piece-wise initialization of structures in memory with constant elements.
+
+The special case of initialization with a constant zero:
+
+  c ≞ 0;
+
+produces:
+
+  memset(c, 0, sizeof(c));
+
+=head2 Using ≞≞ for !memcmp(...);
+
+Convert instances of B<≞≞> and  B<!≞> as in:
+
+  typedef struct
+   {int a;
+    int b;
+   } S;
+  S t,   s;  s.a = 1; s.b = 2;
+    t  ≞ s;  // A
+  ✓ s ≞≞ t;  // B
+    t  ≞ 0;  // C
+  ✓ s !≞ t;  // D
+
+to get:
+
+  // A
+  ({typeof(t) sourcesourcesource = s;
+    memcpy(&t, &sourcesourcesource,
+    sizeof(t));
+  });
+
+  // B
+  assert(
+   ({typeof(s) targettargettarget = s,
+               sourcesourcesource = t;
+     !memcmp(&targettargettarget, &sourcesourcesource, sizeof(s));
+    }));
+
+  // C
+  memset(&t, 0, sizeof(t));
+
+  // D
+  assert(
+   ({typeof(s) targettargettarget = s, sourcesourcesource = t;
+     memcmp(&targettargettarget, &sourcesourcesource,
+     sizeof(s));
+   }));
+
+to allow compact comparisons of structures in memory.
 
 =head2 Replacing $ with the base file name.
 
@@ -661,7 +714,7 @@ L<https://github.com/philiprbrenan/PreprocessOps>
 Preprocess ◁, ◀, ▷ and ▶ as operators in ANSI-C.
 
 
-Version 20201026.
+Version 20201028.
 
 
 The following sections describe the methods in each functional area of this
@@ -845,6 +898,45 @@ B<Example:>
    }
   END
     clearFolder($d, 10);
+   }
+  
+  if (26) {                                                                       
+    my $d = q(zzz);
+  
+    my $c = owf(fpe($d, qw(source c)), <<'END');  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+  #include <assert.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  int main(void)
+   {typedef struct
+     {int a;
+      int b;
+     } S;
+    S s; s.a = 1; s.b = 2;
+    S t;
+      t ≞ s;  ✓ s ≞≞ t;
+      t ≞ 0;  ✓ s !≞ t;
+    printf(◉);
+  success
+  ◉
+   }
+  END
+  
+    my $h = fpe($d, qw(source  h));
+  
+    my $g = fpe($d, qw(derived c));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+  
+    my $r = c($c, $g, $h);  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+  
+    is_deeply scalar(qx(cd $d; gcc -g -Wall derived.c -o a; ./a)), <<END;  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+  success
+  END
+  # clearFolder($d, 10);
    }
   
 
@@ -1077,7 +1169,7 @@ use Test::More;
 my $hasgcc = confirmHasCommandLineCommand(q(gcc));
 
 if ($^O =~ m(bsd|linux)i and $hasgcc)                                           # Only these operating systems are supported
- {plan tests => 5
+ {plan tests => 6
  }
 else
  {plan skip_all => 'Not supported'
@@ -1226,6 +1318,37 @@ int main(void)
  }
 END
   clearFolder($d, 10);
+ }
+
+if (26) {                                                                       #Tc
+  my $d = q(zzz);
+  my $c = owf(fpe($d, qw(source c)), <<'END');
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+int main(void)
+ {typedef struct
+   {int a;
+    int b;
+   } S;
+  S s; s.a = 1; s.b = 2;
+  S t;
+    t ≞ s;  ✓ s ≞≞ t;
+    t ≞ 0;  ✓ s !≞ t;
+  printf(◉);
+success
+◉
+ }
+END
+
+  my $h = fpe($d, qw(source  h));
+  my $g = fpe($d, qw(derived c));
+  my $r = c($c, $g, $h);
+  is_deeply scalar(qx(cd $d; gcc -g -Wall derived.c -o a; ./a)), <<END;
+success
+END
+# clearFolder($d, 10);
  }
 
 done_testing;
