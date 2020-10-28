@@ -110,9 +110,9 @@ sub duplicateFunction($$$)                                                      
         push @C, $_;                                                            # Save accumulated changes
        }
 
-      my $l = $lineNumber + 1;                                                  # Save duplicate code with accumulated changes
+      my $l = $lineNumber + 2;                                                  # Save duplicate code with accumulated changes
       push @r, join '', @C;
-      push @r, qq(#line $l "$inputFile"\n);
+      push @r, qq(#line $l "$inputFile" // AA\n);
      }
 
     my $r = join '', @r;                                                        # Changed code
@@ -158,7 +158,7 @@ sub includeFile($$$$$)                                                          
        {if ($c =~ m((\S+)\s*//))                                                # Method or structure name
          {my $item = $1;
           if ($command =~ m(include)      &&  $items            {$item})        # Include specifies the exact name of the thing we want
-           {push @c, join ' ', "#line", $i+2, qq("$file"), "\n";
+           {push @c, join ' ', "#line", $i+2, qq("$file"), "// BB\n";
             my @l;
             for(; $i < @code; ++$i)
              {push @l, $code[$i];
@@ -174,7 +174,7 @@ sub includeFile($$$$$)                                                          
        }
      }
     my $l = $lineNumber + 2;                                                    # Adjust line numbers to reflect unexpanded source
-    return join '', @c, qq(#line $l "$inputFile"\n);
+    return join '', @c, qq(#line $l "$inputFile" // CC\n);
 #   return join '', @c;
    }
   confess "Unable to parse include statement:\n$code";
@@ -739,40 +739,40 @@ Preprocess ▷ and ▶ as method dispatch operators in ANSI-C.
 B<Example:>
 
 
-  if (88) {                                                                       
+  if (88) {
     my $d  = q(zzz);
     my $ds = fpd($d,  qw(source));
     my $dd = fpd($d,  qw(derived));
-  
+
     my $sc = fpe($ds, qw(node c));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-  
+
     my $dc = fpe($dd, qw(node c));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
     my $dh = fpe($dd, qw(node h));
-  
+
     owf($sc, <<END);
   #include <stdio.h>
-  
+
   typedef struct Node                                                             // Node
    {const struct ProtoTypes_Node *proto;
     int data;
    } Node;
-  
+
   #include "node.h"
-  
+
   static Node by                                                                  // New from node * number
    (const Node * n,                                                               // Node
     const int    i)                                                               // Multiplier
    {return new Node(data: i * n->data);
    }
-  
+
   static void dump                                                                // Dump a node to stdout
    (const Node * n)                                                               // Node to dump
    {printf("data=%d\
 ", n->data);
    }
-  
+
   int main(void)                                                                  //TnewNode //Tdump //Tby
    {a ◁ new Node(data: 6);
     b ◁ a ▷ by(7);
@@ -780,45 +780,45 @@ B<Example:>
     return 0;
    }
   END
-  
-  
+
+
     my $r = c($sc, $dc, $dh);                                                     # Preprocess source c to get derived c  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-  
+
     my $c = qq((cd $dd; gcc node.c -o a; ./a));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-  
+
     is_deeply scalar(qx($c)), "data=42
 ";  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-  
-  
+
+
     is_deeply readCFile($dc), <<'END';                                            # Generated base.c  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-  
+
   #line 1 "node.c"  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   #include <stdio.h>
-  
+
   typedef struct Node                                                             // Node
    {const struct ProtoTypes_Node *proto;
     int data;
    } Node;
-  
+
   #include "node.h"
-  
+
   static Node by                                                                  // New from node * number
    (const Node * n,                                                               // Node
     const int    i)                                                               // Multiplier
    {return newNode(({struct Node t = {data: i * n->data, proto: &ProtoTypes_Node}; t;}));
    }
-  
+
   static void dump                                                                // Dump a node to stdout
    (const Node * n)                                                               // Node to dump
    {printf("data=%d
 ", n->data);
    }
-  
+
   int main(void)                                                                  //TnewNode //Tdump //Tby
    {const typeof(newNode(({struct Node t = {data: 6, proto: &ProtoTypes_Node}; t;}))) a = newNode(({struct Node t = {data: 6, proto: &ProtoTypes_Node}; t;}));
     const typeof(a.proto->by(&a, 7)) b = a.proto->by(&a, 7);
@@ -826,7 +826,7 @@ B<Example:>
     return 0;
    }
   END
-  
+
     is_deeply readCFile($dh), <<END;                                              # Generated include file
   static Node by
    (const Node * n,
@@ -844,13 +844,13 @@ B<Example:>
   {by, dump};
   Node newNode(Node allocator) {return allocator;}
   END
-  
+
     clearFolder($d, 10);
    }
-  
-  if (36) {                                                                       
+
+  if (36) {
     my $d = q(zzz);
-  
+
     my $c = owf(fpe($d, qw(source c)), <<'END');  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   #include <assert.h>
@@ -864,24 +864,24 @@ B<Example:>
     printf("%s", a);
    }
   END
-  
+
     my $h = fpe($d, qw(source  h));
-  
+
     my $g = fpe($d, qw(derived c));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-  
-  
+
+
     my $r = c($c, $g, $h);  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-  
+
     is_deeply scalar(qx(cd $d; gcc derived.c -o a; ./a)), <<END;  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   a
     b
   END
-  
+
     is_deeply readCFile($g), <<'END';
-  
+
   #line 1 "source.c"  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   #include <assert.h>
@@ -899,10 +899,10 @@ B<Example:>
   END
     clearFolder($d, 10);
    }
-  
-  if (26) {                                                                       
+
+  if (26) {
     my $d = q(zzz);
-  
+
     my $c = owf(fpe($d, qw(source c)), <<'END');  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   #include <assert.h>
@@ -923,22 +923,22 @@ B<Example:>
   ◉
    }
   END
-  
+
     my $h = fpe($d, qw(source  h));
-  
+
     my $g = fpe($d, qw(derived c));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-  
+
     my $r = c($c, $g, $h);  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-  
+
     is_deeply scalar(qx(cd $d; gcc -g -Wall derived.c -o a; ./a)), <<END;  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   success
   END
   # clearFolder($d, 10);
    }
-  
+
 
 
 =head2 PreprocessOpsMap Definition
