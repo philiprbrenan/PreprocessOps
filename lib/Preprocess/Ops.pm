@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------------
 # podDocumentation
 package Preprocess::Ops;
-our $VERSION = 20201028;
+our $VERSION = 20201029;
 use warnings FATAL => qw(all);
 use strict;
 use Carp;
@@ -715,7 +715,7 @@ L<https://github.com/philiprbrenan/PreprocessOps>
 Preprocess ◁, ◀, ▷ and ▶ as operators in ANSI-C.
 
 
-Version 20201028.
+Version 20201029.
 
 
 The following sections describe the methods in each functional area of this
@@ -740,40 +740,40 @@ Preprocess ▷ and ▶ as method dispatch operators in ANSI-C.
 B<Example:>
 
 
-  if (88) {
+  if (88) {                                                                       
     my $d  = q(zzz);
     my $ds = fpd($d,  qw(source));
     my $dd = fpd($d,  qw(derived));
-
+  
     my $sc = fpe($ds, qw(node c));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-
+  
     my $dc = fpe($dd, qw(node c));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
     my $dh = fpe($dd, qw(node h));
-
+  
     owf($sc, <<END);
   #include <stdio.h>
-
+  
   typedef struct Node                                                             // Node
    {const struct ProtoTypes_Node *proto;
     int data;
    } Node;
-
+  
   #include "node.h"
-
+  
   static Node by                                                                  // New from node * number
    (const Node * n,                                                               // Node
     const int    i)                                                               // Multiplier
    {return new Node(data: i * n->data);
    }
-
+  
   static void dump                                                                // Dump a node to stdout
    (const Node * n)                                                               // Node to dump
    {printf("data=%d\
 ", n->data);
    }
-
+  
   int main(void)                                                                  //TnewNode //Tdump //Tby
    {a ◁ new Node(data: 6);
     b ◁ a ▷ by(7);
@@ -781,45 +781,45 @@ B<Example:>
     return 0;
    }
   END
-
-
+  
+  
     my $r = c($sc, $dc, $dh);                                                     # Preprocess source c to get derived c  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-
+  
     my $c = qq((cd $dd; gcc node.c -o a; ./a));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-
+  
     is_deeply scalar(qx($c)), "data=42
 ";  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-
-
+  
+  
     is_deeply readCFile($dc), <<'END';                                            # Generated base.c  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-
+  
   #line 1 "node.c"  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   #include <stdio.h>
-
+  
   typedef struct Node                                                             // Node
    {const struct ProtoTypes_Node *proto;
     int data;
    } Node;
-
+  
   #include "node.h"
-
+  
   static Node by                                                                  // New from node * number
    (const Node * n,                                                               // Node
     const int    i)                                                               // Multiplier
    {return newNode(({struct Node t = {data: i * n->data, proto: &ProtoTypes_Node}; t;}));
    }
-
+  
   static void dump                                                                // Dump a node to stdout
    (const Node * n)                                                               // Node to dump
    {printf("data=%d
 ", n->data);
    }
-
+  
   int main(void)                                                                  //TnewNode //Tdump //Tby
    {const typeof(newNode(({struct Node t = {data: 6, proto: &ProtoTypes_Node}; t;}))) a = newNode(({struct Node t = {data: 6, proto: &ProtoTypes_Node}; t;}));
     const typeof(a.proto->by(&a, 7)) b = a.proto->by(&a, 7);
@@ -827,7 +827,7 @@ B<Example:>
     return 0;
    }
   END
-
+  
     is_deeply readCFile($dh), <<END;                                              # Generated include file
   static Node by
    (const Node * n,
@@ -845,13 +845,13 @@ B<Example:>
   {by, dump};
   Node newNode(Node allocator) {return allocator;}
   END
-
+  
     clearFolder($d, 10);
    }
-
-  if (36) {
+  
+  if (36) {                                                                       
     my $d = q(zzz);
-
+  
     my $c = owf(fpe($d, qw(source c)), <<'END');  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   #include <assert.h>
@@ -865,24 +865,24 @@ B<Example:>
     printf("%s", a);
    }
   END
-
+  
     my $h = fpe($d, qw(source  h));
-
+  
     my $g = fpe($d, qw(derived c));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-
-
+  
+  
     my $r = c($c, $g, $h);  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-
+  
     is_deeply scalar(qx(cd $d; gcc derived.c -o a; ./a)), <<END;  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   a
     b
   END
-
+  
     is_deeply readCFile($g), <<'END';
-
+  
   #line 1 "source.c"  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   #include <assert.h>
@@ -900,10 +900,10 @@ B<Example:>
   END
     clearFolder($d, 10);
    }
-
-  if (26) {
+  
+  if (26) {                                                                       
     my $d = q(zzz);
-
+  
     my $c = owf(fpe($d, qw(source c)), <<'END');  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   #include <assert.h>
@@ -924,22 +924,22 @@ B<Example:>
   ◉
    }
   END
-
+  
     my $h = fpe($d, qw(source  h));
-
+  
     my $g = fpe($d, qw(derived c));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-
+  
     my $r = c($c, $g, $h);  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
-
+  
     is_deeply scalar(qx(cd $d; gcc -g -Wall derived.c -o a; ./a)), <<END;  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   success
   END
   # clearFolder($d, 10);
    }
-
+  
 
 
 =head2 PreprocessOpsMap Definition
