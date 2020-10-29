@@ -1,4 +1,4 @@
-# Build and test CPAN module: Preprocess::Ops
+# Build and test CPAN module: PreprocessOps
 
 name: Test
 
@@ -16,7 +16,9 @@ jobs:
       run: |
         sudo apt update
         sudo apt -y install build-essential tree
-        sudo cpan install Data::Table::Text
+        sudo cpan install Module::Build Digest::SHA1 JSON
+
+
 
     - name: Test
       run: |
