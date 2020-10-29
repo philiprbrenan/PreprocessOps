@@ -386,6 +386,7 @@ END
        }
       elsif ($state)                                                            # In here document
        {chomp($c);
+        $c =~ s(") (\\")gs;                                                     # Escape quotes
         $code[$i] = qq("$c\\n"\n);
        }
       elsif ($code[$i] =~ s(\s*◉(.*)\Z)()) {$state = $1}                        # Start here document
