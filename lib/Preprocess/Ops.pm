@@ -363,10 +363,10 @@ END
       $c =~ s{✓([^;]*)} {assert($1)}gis;                                        # Tick becomes assert
 
       my $s = 'source'x3; my $t = 'target'x3;                                   # Unlikely variable names
-      $c =~ s{($e+)\s*!≞\s*([^;)]*)} {({typeof($1) $t = $1, $s = $2;  memcmp(&$t, &$s, sizeof($1));})}gis; # Memory not equal
-      $c =~ s{($e+)\s*≞≞\s*([^;)]*)} {({typeof($1) $t = $1, $s = $2; !memcmp(&$t, &$s, sizeof($1));})}gis; # Memory equal
-      $c =~ s{($e+)\s*≞\s*0\s*}      {memset(&$1, 0,                                      sizeof($1))}gis; # Clear memory if equal zero
-      $c =~ s{($e+)\s*≞\s*([^;]*)}  {({typeof($1) $s = $2; memcpy(&$1, &$s, sizeof($1));})}gis;           # Memory equals becomes memcpy if copying something not zero
+      $c =~ s{($e+)\s*!≞\s*([^;)]*)} {({typeof($1) $t = $1, $s = $2;  memcmp((void *)&$t, (void *)&$s, sizeof($1));})}gis; # Memory not equal
+      $c =~ s{($e+)\s*≞≞\s*([^;)]*)} {({typeof($1) $t = $1, $s = $2; !memcmp((void *)&$t, (void *)&$s, sizeof($1));})}gis; # Memory equal
+      $c =~ s{($e+)\s*≞\s*0\s*}      {memset((void *)&$1, 0,                                           sizeof($1))}gis;    # Clear memory if equal zero
+      $c =~ s{($e+)\s*≞\s*([^;]*)}  {({typeof($1) $s = $2; memcpy((void *)&$1, (void *)&$s, sizeof($1));})}gis;            # Memory equals becomes memcpy if copying something not zero
 
       $c =~ s( +\Z) ()gs;                                                       # Remove trailing spaces at line ends
      }
