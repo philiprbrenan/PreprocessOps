@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------------
 # podDocumentation
 package Preprocess::Ops;
-our $VERSION = 20201029;
+our $VERSION = 20201101;
 use warnings FATAL => qw(all);
 use strict;
 use Carp;
@@ -112,7 +112,7 @@ sub duplicateFunction($$$)                                                      
 
       my $l = $lineNumber + 2;                                                  # Save duplicate code with accumulated changes
       push @r, join '', @C;
-      push @r, qq(#line $l "$inputFile" // AA\n);
+      push @r, qq(#line $l "$inputFile"\n);
      }
 
     my $r = join '', @r;                                                        # Changed code
@@ -158,7 +158,7 @@ sub includeFile($$$$$)                                                          
        {if ($c =~ m((\S+)\s*//))                                                # Method or structure name
          {my $item = $1;
           if ($command =~ m(include)      &&  $items            {$item})        # Include specifies the exact name of the thing we want
-           {push @c, join ' ', "#line", $i+2, qq("$file"), "// BB\n";
+           {push @c, join ' ', "#line", $i+2, qq("$file"), "\n";
             my @l;
             for(; $i < @code; ++$i)
              {push @l, $code[$i];
@@ -362,11 +362,22 @@ END
 
       $c =~ s{✓([^;]*)} {assert($1)}gis;                                        # Tick becomes assert
 
-      my $s = 'source'x3; my $t = 'target'x3;                                   # Unlikely variable names
-      $c =~ s{($e+)\s*!≞\s*([^;)]*)} {({typeof($1) $t = $1, $s = $2;  memcmp((void *)&$t, (void *)&$s, sizeof($1));})}gis; # Memory not equal
-      $c =~ s{($e+)\s*≞≞\s*([^;)]*)} {({typeof($1) $t = $1, $s = $2; !memcmp((void *)&$t, (void *)&$s, sizeof($1));})}gis; # Memory equal
-      $c =~ s{($e+)\s*≞\s*0\s*}      {memset((void *)&$1, 0,                                           sizeof($1))}gis;    # Clear memory if equal zero
-      $c =~ s{($e+)\s*≞\s*([^;]*)}  {({typeof($1) $s = $2; memcpy((void *)&$1, (void *)&$s, sizeof($1));})}gis;            # Memory equals becomes memcpy if copying something not zero
+      if (1)                                                                    # String compare and assignment
+       {$c =~ s{($e+)\s* !≈ \s*([^;)]*)} { strcmp($1, $2)}gisx;                 # String not equal
+        $c =~ s{($e+)\s* ≈≈ \s*([^;)]*)} {!strcmp($1, $2)}gisx;                 # String equal
+        $c =~ s{($e+)\s* ≋  \s*([^;)]*)} {char $1\[$2\]}gisx;                   # Create string
+        $c =~ s{($e+)\s* ≈  \s*([^;)]*)} { strcpy($1, $2)}gisx;                 # String copy
+        $c =~ s{($e+)\s* \+≈\s*([^;)]*)} { stpcpy($1, $2)}gisx;                 # String concatenation
+        $c =~ s{($e+)\s* ∼  \s*([^;)]*)} { strstr($1, $2)}gisx;                 # Find second string in first string and return a pointer to it
+       }
+
+      if (1)                                                                    # Memory compare and assignment
+       {my $s = 'source'x3; my $t = 'target'x3;                                 # Unlikely variable names
+        $c =~ s{($e+)\s*!≞\s*([^;)]*)} {({typeof($1) $t = $1, $s = $2;  memcmp((void *)&$t, (void *)&$s, sizeof($1));})}gis; # Memory not equal
+        $c =~ s{($e+)\s*≞≞\s*([^;)]*)} {({typeof($1) $t = $1, $s = $2; !memcmp((void *)&$t, (void *)&$s, sizeof($1));})}gis; # Memory equal
+        $c =~ s{($e+)\s*≞\s*0\s*}      {memset((void *)&$1, 0,                                           sizeof($1))}gis;    # Clear memory if equal zero
+        $c =~ s{($e+)\s*≞\s*([^;]*)}  {({typeof($1) $s = $2; memcpy((void *)&$1, (void *)&$s, sizeof($1));})}gis;            # Memory equals becomes memcpy if copying something not zero
+       }
 
       $c =~ s( +\Z) ()gs;                                                       # Remove trailing spaces at line ends
      }
@@ -557,7 +568,7 @@ produces:
 
   memset(c, 0, sizeof(c));
 
-=head2 Using ≞≞ for !memcmp(...);
+=head2 Using ≞≞ for !memcmp(...)
 
 Convert instances of B<≞≞> and  B<!≞> as in:
 
@@ -574,9 +585,9 @@ Convert instances of B<≞≞> and  B<!≞> as in:
 to get:
 
   // A
-  ({typeof(t) sourcesourcesource = s;
+  ({typeof( t)  sourcesourcesource = s;
     memcpy(&t, &sourcesourcesource,
-    sizeof(t));
+    sizeof( t));
   });
 
   // B
@@ -591,12 +602,80 @@ to get:
 
   // D
   assert(
-   ({typeof(s) targettargettarget = s, sourcesourcesource = t;
-     memcmp(&targettargettarget, &sourcesourcesource,
+   ({typeof(s)targettargettarget = s, sourcesourcesource = t;
+     memcmp( &targettargettarget,    &sourcesourcesource,
      sizeof(s));
    }));
 
 to allow compact comparisons of structures in memory.
+
+=head2 Using ≈≈ for !strcmp(...);
+
+Convert instances of B<≈≈> and  B<!≈> as in:
+
+ {  a ≋ 12; b ≋ 12; c ≋ 12;
+    a ≈ "aaaa";
+    b ≈ "bbbb";
+    A ◁ c +≈ a; B ◁ A +≈ b;
+    C ◁ c ∼  b;
+
+  ✓ a ≈≈ "aaaa";  // AAAA
+  ✓ b ≈≈ "bbbb";
+  ✓ b !≈ a;       // BBBB
+  ✓ c ≈≈ "aaaabbbb";
+  ✓ A ≈≈ b;
+  ✓ B ≈≈ "";
+  ✓ C ≈≈ b;
+
+to get:
+
+  assert(!strcmp(a, "aaaa"); // AAAA
+
+  assert( strcmp(b, "bbbb"); // BBBB
+
+to create readable string equality operations.
+
+=head3 Using ≋ to declare strings.
+
+Strings can be declared using the B<≋> operator to supply a length, so that:
+
+  N ◁ 12;
+  a ≋ N+1;
+
+becomes:
+
+  char a[13];
+
+via:
+
+  const int N = 12;
+  char    a[N + 1];
+
+=head3 Using +≈ to concatenate strings.
+
+Strings can be concatenated with the B<+≈> operator, so that:
+
+  c ≋ 12;
+  a ◁ c +≈ "aaaa";
+  b ◁ A +≈ "aaaa";
+  ✓ c ≈≈ "aaaabbbb";
+
+becomes:
+
+  char c[12];
+  char *a = stpcpy(c, "aaaa");
+  char *b = stpcpy(a, "bbbb");
+  assert(!strcmp(c,   "aaaabbbb");
+
+=head3 Using ∼ to search strings.
+
+Strings can be searched using the B<∼> operator to supply a search string as in:
+
+    C ◁ c ∼ b;
+
+which becomes:
+
+  char *C = strstr(a, b);
 
 =head2 Replacing $ with the base file name.
 
@@ -715,7 +794,7 @@ L<https://github.com/philiprbrenan/PreprocessOps>
 Preprocess ◁, ◀, ▷ and ▶ as operators in ANSI-C.
 
 
-Version 20201029.
+Version 20201101.
 
 
 The following sections describe the methods in each functional area of this
@@ -919,6 +998,59 @@ B<Example:>
     S t;
       t ≞ s;  ✓ s ≞≞ t;
       t ≞ 0;  ✓ s !≞ t;
+    printf(◉);
+  success
+  ◉
+   }
+  END
+  
+    my $h = fpe($d, qw(source  h));
+  
+    my $g = fpe($d, qw(derived c));  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+  
+    my $r = c($c, $g, $h);  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+  
+    is_deeply scalar(qx(cd $d; gcc -g -Wall derived.c -o a; ./a)), <<END;  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+  success
+  END
+  # clearFolder($d, 10);
+   }
+  
+  if (26) {                                                                       
+    my $d = q(zzz);
+  
+    my $c = owf(fpe($d, qw(source c)), <<'END');  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+  #include <assert.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  int main(void)
+  
+   {  a ≋ 12; b ≋ 12; c ≋ 12;  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+      a ≈ "aaaa";
+      b ≈ "bbbb";
+  
+      A ◁ c +≈ a; B ◁ A +≈ b;  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+  
+      C ◁  c ∼ b;  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+  
+    ✓ a ≈≈ "aaaa";
+    ✓ b ≈≈ "bbbb";
+    ✓ b !≈ a;
+  
+    ✓ c ≈≈ "aaaabbbb";  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+    ✓ A ≈≈ b;
+    ✓ B ≈≈ "";
+    ✓ C ≈≈ b;
+  
     printf(◉);
   success
   ◉
@@ -1170,7 +1302,7 @@ use Test::More;
 my $hasgcc = confirmHasCommandLineCommand(q(gcc));
 
 if ($^O =~ m(bsd|linux)i and $hasgcc)                                           # Only these operating systems are supported
- {plan tests => 6
+ {plan tests => 7
  }
 else
  {plan skip_all => 'Not supported'
@@ -1337,6 +1469,43 @@ int main(void)
   S t;
     t ≞ s;  ✓ s ≞≞ t;
     t ≞ 0;  ✓ s !≞ t;
+  printf(◉);
+success
+◉
+ }
+END
+
+  my $h = fpe($d, qw(source  h));
+  my $g = fpe($d, qw(derived c));
+  my $r = c($c, $g, $h);
+  is_deeply scalar(qx(cd $d; gcc -g -Wall derived.c -o a; ./a)), <<END;
+success
+END
+# clearFolder($d, 10);
+ }
+
+if (26) {                                                                       #Tc
+  my $d = q(zzz);
+  my $c = owf(fpe($d, qw(source c)), <<'END');
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+int main(void)
+ {  a ≋ 12; b ≋ 12; c ≋ 12;
+    a ≈ "aaaa";
+    b ≈ "bbbb";
+    A ◁ c +≈ a; B ◁ A +≈ b;
+    C ◁  c ∼ b;
+
+  ✓ a ≈≈ "aaaa";
+  ✓ b ≈≈ "bbbb";
+  ✓ b !≈ a;
+  ✓ c ≈≈ "aaaabbbb";
+  ✓ A ≈≈ b;
+  ✓ B ≈≈ "";
+  ✓ C ≈≈ b;
+
   printf(◉);
 success
 ◉
