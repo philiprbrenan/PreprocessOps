@@ -360,8 +360,6 @@ END
       $c =~ s{($e+)\s*▷\s*(\w+)\s*\(} {$1.proto->$2(&$1, }gis;                  # Method call with arguments
       $c =~ s{($e+)\s*▷\s*(\w+)}      {$1.proto->$2(&$1)}gis;                   # Method call with no arguments
 
-      $c =~ s{✓([^;]*)} {assert($1)}gis;                                        # Tick becomes assert
-
       if (1)                                                                    # String compare and assignment
        {$c =~ s{($e+)\s* !≈ \s*([^;)]*)} { strcmp($1, $2)}gisx;                 # String not equal
         $c =~ s{($e+)\s* ≈≈ \s*([^;)]*)} {!strcmp($1, $2)}gisx;                 # String equal
@@ -370,6 +368,9 @@ END
         $c =~ s{($e+)\s* \+≈\s*([^;)]*)} { stpcpy($1, $2)}gisx;                 # String concatenation
         $c =~ s{($e+)\s* ∼  \s*([^;)]*)} { strstr($1, $2)}gisx;                 # Find second string in first string and return a pointer to it
        }
+
+      $c =~ s{[☑✓✔✅]([^;]*)} {assert($1)}gis;                                   # Tick becomes assert
+      $c =~ s{[☒✕❎✗✘✖❌]([^;]*)} {assertNot($1)}gis;                             # Cross becomes assert not
 
       if (1)                                                                    # Memory compare and assignment
        {my $s = 'source'x3; my $t = 'target'x3;                                 # Unlikely variable names
@@ -543,17 +544,27 @@ to get:
 "  b\n"
 ;
 
-=head2 Using ✓ for assert(...);
+=head2 Using ✓ or ✔ for assert(...);
 
-Convert instances of ✓ as in:
+Convert instances of B<✓> or B<✔> as in:
 
-  ✓ a == 1;
+  ✔ a == 1;
 
 to:
 
   assert(a == 1);
 
 to make B<assert> function calls more prominent in tests.
+
+Conversely B<✗> as in:
+
+    a ◁ 0;
+  ✗ a;
+
+converts to:
+
+  const int a = 0;
+  assert(!a);
 
 =head2 Using ≞ for memcpy(...);
 
