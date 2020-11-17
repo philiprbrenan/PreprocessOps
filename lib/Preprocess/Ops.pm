@@ -343,6 +343,38 @@ END
     owf($hFile, join "\n", @forwards, @h, '');
    }
 
+  if (1)                                                                        # Preprocess here documents in C code
+   {my $state;                                                                  # True if we are in a here document
+    for(my $i = 0; $i < @code; ++$i)                                            # Each start line
+     {next if $code[$i] =~ m(\A//◉);                                            # Skip previously scanned here document
+      if ($code[$i] =~ s((\A.*\S\s*)◉(.*)\Z) ($1))                              # Start of here document
+       {my ($open, $close) = ($1, $2);                                          # open and close of here doc expression
+        my @h;                                                                  # Lines of here document
+        my $j = $i + 1;                                                         # Scan forwards
+        for my $k($j..$#code)                                                   # Skip previously extracted here documents
+         {last unless $code[$j = $k] =~ m(\A//◉);
+         }
+        for $j($j..$#code)                                                      # Scan forwards
+         {my $c = $code[$j];
+          if ($code[$j] =~ m(\A◉))                                              # Close
+           {  $code[$j] = q(//).$code[$j];                                      # Comment close out
+              my $h = join ' ', @h;                                             # Equivalent  string for here document
+              $code[$i] = qq($open$h$close\n);                                  # Rebuild here doc line with one string
+            last;
+           }
+          else                                                                  # One line of here document
+           {my    $c = $code[$j];                                               # Remove new line
+            chomp $c;                                                           # Remove new line
+                  $c =~ s(") (\")g;                                             # Protect quotes
+            push @h, qq("$c\\n");                                               # Save line
+            $code[$j] = q(//◉).$code[$j];                                       # Comment line out
+
+           }
+         }
+       }
+     }
+   }
+
   if (1)                                                                        # Preprocess input C file
    {my $e = q([a-z0-9𝗮-𝘇¹²³⁴⁵⁶⁷⁸⁹⁰₁₂₃₄₅₆₇₈₉₀ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ\$_>.*[\]-]); # Elements of a name
     for my $c(@code)                                                            # Source code lines
@@ -393,27 +425,6 @@ END
        }
 
       $c =~ s( +\Z) ()gs;                                                       # Remove trailing spaces at line ends
-     }
-   }
-
-  if (1)                                                                        # Preprocess input C file here documents
-   {my $state;                                                                  # True if we are in a here document
-    for(my $i = 0; $i < @code; ++$i)                                            # Each start line
-     {my $c = $code[$i];
-      if ($c =~ m(\A◉))                                                         # End of here document
-       {if ($state) {$code[$i] = "$state\n";}                                   # In here document
-        else                                                                    # No current here document
-         {my $j = $i + 1;
-          lll "No opening here document for closure on line: $j";
-         }
-        $state = undef;
-       }
-      elsif ($state)                                                            # In here document
-       {chomp($c);
-        $c =~ s(") (\\")gs;                                                     # Escape quotes
-        $code[$i] = qq("$c\\n"\n);
-       }
-      elsif ($code[$i] =~ s(\s*◉(.*)\Z)()) {$state = $1}                        # Start here document
      }
    }
 
@@ -1434,7 +1445,7 @@ if (36) {                                                                       
 #include <assert.h>
 #include <stdio.h>
 int main(void)
- {char *a = ◉;
+ {a ◁ ◉;
 a
   b
 ◉
@@ -1447,20 +1458,21 @@ END
   my $g = fpe($d, qw(derived c));
 
   my $r = c($c, $g, $h);
-  is_deeply scalar(qx(cd $d; gcc derived.c -o a; ./a)), <<END;
+
+  is_deeply scalar(qx(cd $d; gcc derived.c -o a; ./a)), <<END, 'aaaa';
 a
   b
 END
 
-  is_deeply readCFile($g), <<'END';
+  is_deeply readCFile($g), <<'END', 'bbbb';
 #line 1 "source.c"
 #include <assert.h>
 #include <stdio.h>
 int main(void)
- {char *a =
-"a\n"
-"  b\n"
-;
+ {const typeof("a\n" "  b\n") a = "a\n" "  b\n";
+//◉a
+//◉  b
+//◉
   assert( a[0] == 'a');
   printf("%s", a);
  }
