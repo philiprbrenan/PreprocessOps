@@ -5,8 +5,9 @@
 #-------------------------------------------------------------------------------
 # podDocumentation
 package Preprocess::Ops;
-our $VERSION = 20201102;
+our $VERSION = 20201117;
 use warnings FATAL => qw(all);
+use strict;
 use strict;
 use Carp;
 use Data::Dump qw(dump);
@@ -365,7 +366,7 @@ END
           else                                                                  # One line of here document
            {my    $c = $code[$j];                                               # Remove new line
             chomp $c;                                                           # Remove new line
-                  $c =~ s(") (\")g;                                             # Protect quotes
+                  $c =~ s(") (\\\")g;                                           # Protect quotes
             push @h, qq("$c\\n");                                               # Save line
             $code[$j] = q(//◉).$code[$j];                                       # Comment line out
 
@@ -828,7 +829,7 @@ L<https://github.com/philiprbrenan/PreprocessOps>
 Preprocess ◁, ◀, ▷ and ▶ as operators in ANSI-C.
 
 
-Version 20201102.
+Version 20201117.
 
 
 The following sections describe the methods in each functional area of this
@@ -970,7 +971,7 @@ B<Example:>
   #include <assert.h>
   #include <stdio.h>
   int main(void)
-   {char *a = ◉;
+   {a ◁ ◉;
   a
     b
   ◉
@@ -988,25 +989,28 @@ B<Example:>
     my $r = c($c, $g, $h);  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
 
-    is_deeply scalar(qx(cd $d; gcc derived.c -o a; ./a)), <<END;  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
+
+    is_deeply scalar(qx(cd $d; gcc derived.c -o a; ./a)), <<END, 'aaaa';  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   a
     b
   END
 
-    is_deeply readCFile($g), <<'END';
+    is_deeply readCFile($g), <<'END', 'bbbb';
 
   #line 1 "source.c"  # 𝗘𝘅𝗮𝗺𝗽𝗹𝗲
 
   #include <assert.h>
   #include <stdio.h>
   int main(void)
-   {char *a =
-  "a
-"
-  "  b
-"
-  ;
+   {const typeof("a
+" "  b
+") a = "a
+" "  b
+";
+  //◉a
+  //◉  b
+  //◉
     assert( a[0] == 'a');
     printf("%s", a);
    }
