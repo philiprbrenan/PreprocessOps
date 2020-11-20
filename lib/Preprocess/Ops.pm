@@ -1520,7 +1520,7 @@ END
   is_deeply scalar(qx(cd $d; gcc -g -Wall derived.c -o a; ./a)), <<END;
 success
 END
-# clearFolder($d, 10);
+  clearFolder($d, 10);
  }
 
 if (26) {                                                                       #Tc
@@ -1557,7 +1557,7 @@ END
   is_deeply scalar(qx(cd $d; gcc -g -Wall derived.c -o a; ./a)), <<END;
 success
 END
-# clearFolder($d, 10);
+  clearFolder($d, 10);
  }
 
 done_testing;
